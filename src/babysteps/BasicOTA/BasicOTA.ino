@@ -3,8 +3,8 @@
 #include <WiFiUdp.h>
 #include <ArduinoOTA.h>
 
-const char* ssid = "user";
-const char* password = "pass";
+const char* ssid = "ssid";
+const char* password = "password";
 uint32_t timeout;
 
 #define HOSTNAME "solohm-mm-"
@@ -96,7 +96,7 @@ void setup() {
 
   udp.begin(WiFi.localIP());
   
-  broadcast("setup");
+  broadcast((char *)"setup");
 }
 
 void loop() {

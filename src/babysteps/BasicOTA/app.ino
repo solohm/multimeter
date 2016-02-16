@@ -28,9 +28,15 @@ void broadcast(char * message) {
 void handleRoot() {
   String html("<head><meta http-equiv='refresh' content='5'></head><body>You are connected</><br><b>");
   html.concat(millis());
-  html.concat("</b></body>");
+  html.concat("</b><form action='reset'><input type='submit' value='Reset'></form></body>");
   server.send(200, "text/html", html.c_str());
 }
+
+void handleReset() {
+  server.send(200, "text/html", "<b>Reseting</b>");
+  ESP.reset();
+}
+  
 
 void broadcastStatus() {
   String message("{\"nodeid\":");
@@ -74,6 +80,7 @@ void setup() {
   String hostname(HOSTNAME);
   hostname += String(ESP.getChipId(), HEX);
   ArduinoOTA.setHostname((const char *)hostname.c_str());
+  WiFi.softAP((const char *)hostname.c_str());
 
   // No authentication by default
   // ArduinoOTA.setPassword((const char *)"123");
@@ -115,8 +122,11 @@ void setup() {
   udp.begin(WiFi.localIP());
 
   server.on("/", handleRoot);
+  server.on("/reset", handleReset);
+
   server.begin();
   Serial.println("HTTP server started");
+
 
 }
 

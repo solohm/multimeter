@@ -2,9 +2,10 @@
 #include <ESP8266mDNS.h>
 #include <WiFiUdp.h>
 #include <ArduinoOTA.h>
+#include <ESP8266WebServer.h>
 
-const char* ssid = "ssid";
-const char* password = "password";
+const char* ssid = "zeeboo-g";
+const char* password = "zaralily";
 uint32_t timeout;
 
 #define HOSTNAME "solohm-mm-"
@@ -13,10 +14,19 @@ WiFiUDP udp;
 unsigned int port = 12345;
 IPAddress broadcastIp;
 
+ESP8266WebServer server(80);
+
 void broadcast(char * message) {
   udp.beginPacketMulticast(broadcastIp, port, WiFi.localIP());
   udp.write(message);
   udp.endPacket();
+}
+
+void handleRoot() {
+  String html("<head><meta http-equiv='refresh' content='5'></head><body>You are connected</><br><b>");
+  html.concat(millis());
+  html.concat("</b></body>");
+  server.send(200, "text/html", html.c_str());
 }
 
 void broadcastStatus() {
@@ -39,13 +49,18 @@ void setup() {
 
   Serial.begin(115200);
   Serial.println("BasicOTA setup");
-  WiFi.mode(WIFI_STA);
+  WiFi.mode(WIFI_AP_STA);
   WiFi.begin(ssid, password);
   while (WiFi.waitForConnectResult() != WL_CONNECTED) {
     Serial.println("Connection Failed! Rebooting...");
     delay(5000);
     ESP.restart();
   }
+
+//  IPAddress myIP = WiFi.softAPIP();
+//  Serial.print("AP IP address: ");
+//  Serial.println(myIP);
+
 
   // Port defaults to 8266
   // ArduinoOTA.setPort(8266);
@@ -56,6 +71,7 @@ void setup() {
   String hostname(HOSTNAME);
   hostname += String(ESP.getChipId(), HEX);
   ArduinoOTA.setHostname((const char *)hostname.c_str());
+//  WiFi.softAP((const char *)hostname.c_str(),"solohm7");
 
 
   // No authentication by default
@@ -97,11 +113,16 @@ void setup() {
   udp.begin(WiFi.localIP());
   
   broadcast((char *)"setup");
+
+  server.on("/", handleRoot);
+  server.begin();
+  Serial.println("HTTP server started");
 }
 
 void loop() {
   ArduinoOTA.handle();
   yield();
+  server.handleClient();
   if (millis() > timeout) {
     digitalWrite(LED_BUILTIN, !digitalRead(LED_BUILTIN));
     timeout = millis() + 1000;

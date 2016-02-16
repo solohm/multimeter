@@ -16,7 +16,7 @@
 #====================================================================================
 # User editable area
 #====================================================================================
-SKETCH = ../BasicOTA/BasicOTA.ino
+SKETCH = ./app.ino
 
 
 #=== Project specific definitions: sketch and list of needed libraries
@@ -162,7 +162,10 @@ upload: all
 	$(ESP_ROOT)/tools/esptool/esptool -vv -cd nodemcu -cb 115200 -cp /dev/ttyUSB0 -ca 0x00000 -cf $(MAIN_EXE)
 
 ota: all
-	python $(ESP_ROOT)/tools/espota.py -i 192.168.0.128 -p 8266 -f $(MAIN_EXE)
+	python $(ESP_ROOT)/tools/espota.py -r -i 192.168.0.128 -p 8266 -f $(MAIN_EXE)
+
+ota1: all
+	python $(ESP_ROOT)/tools/espota.py -r -i solohm-mm-d67fe6.local -p 8266 -f $(MAIN_EXE)
 
 clean:
 	echo Removing all intermediate build files...

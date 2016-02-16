@@ -4,11 +4,14 @@
 #include <ArduinoOTA.h>
 #include <ESP8266WebServer.h>
 
-const char* ssid = "zeeboo-g";
+const char* ssid = "zeeboo";
 const char* password = "zaralily";
 uint32_t timeout;
 
+#define LED 16
+
 #define HOSTNAME "solohm-mm-"
+#define BROADCASTINTERVAL 1000
 
 WiFiUDP udp;
 unsigned int port = 12345;
@@ -45,49 +48,47 @@ void broadcastStatus() {
   Serial.println(message);
 }
 void setup() {
-  pinMode(LED_BUILTIN, OUTPUT);
+  pinMode(LED, OUTPUT);
 
   Serial.begin(115200);
-  Serial.println("BasicOTA setup");
+  Serial.println("\n\nBasicOTA setup");
+
+  Serial.println("setting mode WIFI_AP_STA");
   WiFi.mode(WIFI_AP_STA);
+
   WiFi.begin(ssid, password);
+  Serial.print("connecting to ");
+  Serial.print(ssid);
+  Serial.print(" ");
+  Serial.println(password);
+
   while (WiFi.waitForConnectResult() != WL_CONNECTED) {
-    Serial.println("Connection Failed! Rebooting...");
-    delay(5000);
-    ESP.restart();
+    delay(500);
+    Serial.print(".");
   }
-
-//  IPAddress myIP = WiFi.softAPIP();
-//  Serial.print("AP IP address: ");
-//  Serial.println(myIP);
-
+  Serial.println("connected");
 
   // Port defaults to 8266
   // ArduinoOTA.setPort(8266);
 
-  // Hostname defaults to esp8266-[ChipID]
-  // ArduinoOTA.setHostname("myesp8266");
-
   String hostname(HOSTNAME);
   hostname += String(ESP.getChipId(), HEX);
   ArduinoOTA.setHostname((const char *)hostname.c_str());
-//  WiFi.softAP((const char *)hostname.c_str(),"solohm7");
-
 
   // No authentication by default
   // ArduinoOTA.setPassword((const char *)"123");
 
   ArduinoOTA.onStart([]() {
     Serial.println("arduinoOTA start");
-    digitalWrite(LED_BUILTIN, HIGH);
+    digitalWrite(LED, HIGH);
   });
   ArduinoOTA.onEnd([]() {
     Serial.println("\arduinoOTA end");
-    digitalWrite(LED_BUILTIN, HIGH);
+    digitalWrite(LED, HIGH);
   });
   ArduinoOTA.onProgress([](unsigned int progress, unsigned int total) {
     Serial.printf("Progress: %u%%\r", (progress / (total / 100)));
-    digitalWrite(LED_BUILTIN, !digitalRead(LED_BUILTIN));
+    digitalWrite(LED, !digitalRead(LED));
 
   });
   ArduinoOTA.onError([](ota_error_t error) {
@@ -98,25 +99,25 @@ void setup() {
     else if (error == OTA_RECEIVE_ERROR) Serial.println("Receive Failed");
     else if (error == OTA_END_ERROR) Serial.println("End Failed");
   });
+
   ArduinoOTA.begin();
-  Serial.println("Ready");
-  Serial.print("IP address: ");
-  Serial.println(WiFi.localIP());
-  Serial.println(hostname);
+
+  Serial.print("IP address ");
+  Serial.print(WiFi.localIP());
+  Serial.print(" ");
+  Serial.print(hostname);
+  Serial.println(".local");
 
   broadcastIp = ~WiFi.subnetMask() | WiFi.gatewayIP();
   Serial.print("broadcast address: ");
   Serial.println(broadcastIp);
 
-
-
   udp.begin(WiFi.localIP());
-  
-  broadcast((char *)"setup");
 
   server.on("/", handleRoot);
   server.begin();
   Serial.println("HTTP server started");
+
 }
 
 void loop() {
@@ -124,8 +125,8 @@ void loop() {
   yield();
   server.handleClient();
   if (millis() > timeout) {
-    digitalWrite(LED_BUILTIN, !digitalRead(LED_BUILTIN));
-    timeout = millis() + 1000;
+    digitalWrite(LED, !digitalRead(LED));
+    timeout = millis() + BROADCASTINTERVAL;
     broadcastStatus();
   }
 

@@ -1,0 +1,4 @@
+https://github.com/Links2004/arduinoWebSockets
+
+npm install -g --unsafe-perm wscat
+wscat -c ws://192.168.0.164:81/butch

@@ -33,7 +33,7 @@ void handleRoot() {
         <div id='status'>Connecting...</div>\
         <ul id='messages'></ul>\
         <form id='message-form' action='#' method='post'>\
-            <textarea id='message' placeholder='Write your message here...' required></textarea><br/>\
+            <input id='message' placeholder='Write your message here...' required></input>\
             <button type='submit'>Send Message</button>\
             <button type='button' id='close'>Close Connection</button>\
         </form>\
@@ -132,23 +132,12 @@ void webSocketEvent(uint8_t num, WStype_t type, uint8_t * payload, size_t length
 uint32_t timeout;
 
 void setup() {
-    // USE_SERIAL.begin(921600);
     USE_SERIAL.begin(115200);
 
     //Serial.setDebugOutput(true);
     USE_SERIAL.setDebugOutput(true);
 
-    USE_SERIAL.println();
-    USE_SERIAL.println();
-    USE_SERIAL.println();
-
-    for(uint8_t t = 4; t > 0; t--) {
-        USE_SERIAL.printf("[SETUP] BOOT WAIT %d...\n", t);
-        USE_SERIAL.flush();
-        delay(1000);
-    }
-
-    WiFiMulti.addAP("zeeboo", "zaralily");
+    WiFiMulti.addAP("ssid", "pass");
 
     while(WiFiMulti.run() != WL_CONNECTED) {
         delay(100);
@@ -169,9 +158,9 @@ void loop() {
     webSocket.loop();
     if (millis() > timeout) {
       char buf[50];
-      sprintf(buf,"%d",millis());
+      sprintf(buf,"{\"uptime\":%d}",millis());
       webSocket.broadcastTXT(buf);
-      timeout = millis() + 5000;
+      timeout = millis() + 1000;
     }
     yield();
 }

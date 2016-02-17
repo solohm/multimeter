@@ -164,7 +164,7 @@ upload: all
 ota: all
 	python $(ESP_ROOT)/tools/espota.py -r -i 192.168.0.128 -p 8266 -f $(MAIN_EXE)
 
-ota1: all
+otalab: all
 	python $(ESP_ROOT)/tools/espota.py -r -i solohm-mm-d67fe6.local -p 8266 -f $(MAIN_EXE)
 
 clean:

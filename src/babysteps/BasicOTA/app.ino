@@ -4,8 +4,8 @@
 #include <ArduinoOTA.h>
 #include <ESP8266WebServer.h>
 
-const char* ssid = "zeeboo";
-const char* password = "zaralily";
+const char* ssid = "ssid";
+const char* password = "pass";
 uint32_t timeout;
 
 #define LED 16
@@ -60,7 +60,7 @@ void setup() {
   Serial.println("\n\nBasicOTA setup");
 
   Serial.println("setting mode WIFI_AP_STA");
-  WiFi.mode(WIFI_AP_STA);
+  WiFi.mode(WIFI_STA);
 
   WiFi.begin(ssid, password);
   Serial.print("connecting to ");

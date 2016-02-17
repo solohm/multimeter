@@ -51,7 +51,8 @@ MKESPARD_VERSION = 1.0.0
 
 START_TIME := $(shell perl -e "print time();")
 # Main output definitions
-MAIN_NAME = $(basename $(notdir $(SKETCH)))
+#MAIN_NAME = $(basename $(notdir $(SKETCH)))
+MAIN_NAME = $(basename $(notdir $(CURDIR)))
 MAIN_EXE = $(BUILD_ROOT)/$(MAIN_NAME).bin
 MAIN_ELF = $(OBJ_DIR)/$(MAIN_NAME).elf
 SRC_GIT_VERSION = $(call git_description,$(dir $(SKETCH)))
@@ -164,7 +165,7 @@ upload: all
 ota: all
 	python $(ESP_ROOT)/tools/espota.py -r -i 192.168.0.128 -p 8266 -f $(MAIN_EXE)
 
-ota1: all
+otalab: all
 	python $(ESP_ROOT)/tools/espota.py -r -i solohm-mm-d67fe6.local -p 8266 -f $(MAIN_EXE)
 
 clean:

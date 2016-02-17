@@ -10,15 +10,19 @@ Version 1.0 supports OLED display's with either SDD1306 or with SH1106 controlle
 #define offset 0x02             // SH1106                       // offset=2 for SH1106 controller
 #define OLED_address  0x3c      // all the OLED's I have seen have this address
 #define SSID "ssid"            // insert your SSID
-#define PASS "pass"            // insert your password
+#define PASS "p*ssword"        // insert your password
 // ******************* String form to sent to the client-browser ************************************
 String form =
-    "<p>"
-    "<center>"
-    "<h1>Talk to me :-)</h1>"
-    "<img src='http://i.imgur.com/qu8lDEu.jpg'>"
-    "<form action='msg'><p>Wassup? <input type='text' name='msg' size=50 autofocus> <input type='submit' value='Submit'></form>"
-    "</center>";
+    "<style>"
+    "body { background: url(http://solohm.com/sunbg.jpg); background-size: 900px 900px; background-repeat: no-repeat; }"
+    "</style>"
+    "<div style='width:900px'>"
+    "<center><div style='height:300px'>&nbsp;</div>"
+    "<h2>SolOhm Multimeter Display Demo</h2>"
+    "<img src='http://solohm.com/sol.png' style='width:128px;height:128px;'>"
+    "<img src='http://solohm.com/ohm.png' style='width:128px;height:128px;'>"
+    "<form action='msg'><p>Text <input type='text' name='msg' size=50 autofocus> <input type='submit' value='Submit'></form>"
+    "</div>";
 
 static void sendcommand(unsigned char com);
 static void setXY(unsigned char row, unsigned char col);
@@ -126,6 +130,10 @@ void setup(void) {
     Wire.begin(5, 4);           // Initialize I2C and OLED Display
     init_OLED();                // 
     reset_display();
+    sendStrXY("display setup", 0, 0);        // OLED first message 
+    sendStrXY(SSID, 2, 0);      // prints SSID on OLED
+    sendStrXY(PASS, 2, 40);      // prints PASS on OLED
+
     WiFi.begin(SSID, PASS);     // Connect to WiFi network
     while (WiFi.status() != WL_CONNECTED) {     // Wait for connection
         delay(500);

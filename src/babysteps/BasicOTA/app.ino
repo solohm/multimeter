@@ -5,7 +5,7 @@
 #include <ESP8266WebServer.h>
 
 const char* ssid = "ssid";
-const char* password = "pass";
+const char* password = "p*ssword";
 uint32_t timeout;
 
 #define LED 16

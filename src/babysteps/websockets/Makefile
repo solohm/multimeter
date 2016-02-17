@@ -53,7 +53,8 @@ MKESPARD_VERSION = 1.0.0
 
 START_TIME := $(shell perl -e "print time();")
 # Main output definitions
-MAIN_NAME = $(basename $(notdir $(SKETCH)))
+#MAIN_NAME = $(basename $(notdir $(SKETCH)))
+MAIN_NAME = $(basename $(notdir $(CURDIR)))
 MAIN_EXE = $(BUILD_ROOT)/$(MAIN_NAME).bin
 MAIN_ELF = $(OBJ_DIR)/$(MAIN_NAME).elf
 SRC_GIT_VERSION = $(call git_description,$(dir $(SKETCH)))

@@ -5,3 +5,5 @@ wscat -c ws://192.168.0.164:81/butch
 
 websocket example from
     http://blog.teamtreehouse.com/an-introduction-to-websockets
+
+sending empty packets crashes the esp8266

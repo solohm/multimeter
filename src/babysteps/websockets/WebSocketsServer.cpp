@@ -275,9 +275,9 @@ IPAddress WebSocketsServer::remoteIP(uint8_t num) {
  * @param client WSclient_t *  ptr to the client struct
  * @param opcode WSopcode_t
  * @param payload  uint8_t *
- * @param lenght size_t
+ * @param length size_t
  */
-void WebSocketsServer::messageRecived(WSclient_t * client, WSopcode_t opcode, uint8_t * payload, size_t lenght) {
+void WebSocketsServer::messageRecived(WSclient_t * client, WSopcode_t opcode, uint8_t * payload, size_t length) {
     WStype_t type = WStype_ERROR;
 
     switch(opcode) {
@@ -289,7 +289,7 @@ void WebSocketsServer::messageRecived(WSclient_t * client, WSopcode_t opcode, ui
             break;
     }
 
-    runCbEvent(client->num, type, payload, lenght);
+    runCbEvent(client->num, type, payload, length);
 
 }
 

@@ -8,7 +8,7 @@ const char* ssid = "ssid";
 const char* password = "p*ssword";
 uint32_t timeout;
 
-#define LED 16
+#define LED 0
 
 #define HOSTNAME "solohm-mm-"
 #define BROADCASTINTERVAL 1000
@@ -47,7 +47,12 @@ void broadcastStatus() {
   message.concat("\"");
   message.concat(",\"uptime\":");
   message.concat(millis());
-  message.concat("}");
+  message.concat(",\"class\":\"");
+  message.concat(MAIN_NAME);
+  message.concat("\",\"ipaddress\":\"");
+  message.concat(WiFi.localIP().toString());
+  message.concat("\"}");
+
 
   broadcast((char *)message.c_str());
   

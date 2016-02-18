@@ -87,11 +87,7 @@ String html("window.onload = function() {\
   server.send(200, "text/html", html.c_str());
 }
 
-
-
-
 void webSocketEvent(uint8_t num, WStype_t type, uint8_t * payload, size_t length) {
-
     switch(type) {
         case WStype_DISCONNECTED:
             USE_SERIAL.printf("[%u] Disconnected!\n", num);
@@ -107,8 +103,7 @@ void webSocketEvent(uint8_t num, WStype_t type, uint8_t * payload, size_t length
             break;
         case WStype_TEXT:
             USE_SERIAL.printf("[%u] get Text: %s\n", num, payload);
-
-            for (int i = 0; i < strlen((const char *)payload); i++) {
+            for (int i = 0; i < length; i++) {
               payload[i] = toupper(payload[i]);
             }
 
@@ -126,7 +121,6 @@ void webSocketEvent(uint8_t num, WStype_t type, uint8_t * payload, size_t length
             // webSocket.sendBIN(num, payload, length);
             break;
     }
-
 }
 
 uint32_t timeout;
@@ -137,7 +131,7 @@ void setup() {
     //Serial.setDebugOutput(true);
     USE_SERIAL.setDebugOutput(true);
 
-    WiFiMulti.addAP("ssid", "pass");
+    WiFiMulti.addAP("ssid", "p*ssword");
 
     while(WiFiMulti.run() != WL_CONNECTED) {
         delay(100);
@@ -160,7 +154,7 @@ void loop() {
       char buf[50];
       sprintf(buf,"{\"uptime\":%d}",millis());
       webSocket.broadcastTXT(buf);
-      timeout = millis() + 1000;
+      timeout = millis() + 100;
     }
     yield();
 }

@@ -1,0 +1,10 @@
+https://github.com/cyberp/DS1337
+
+https://github.com/PaulStoffregen/Time/blob/master/examples/TimeNTP_ESP8266WiFi/TimeNTP_ESP8266WiFi.ino
+
+
+status
+    both ntp and rtc function but its a collection of stuff just to get something functional. should
+    use PaulStoffregen's time code which is all based on tm
+
+

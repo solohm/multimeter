@@ -62,9 +62,11 @@ void setup() {
   pinMode(LED, OUTPUT);
 
   Serial.begin(115200);
-  Serial.println("\n\nBasicOTA setup");
+  Serial.print("\n\n");
+  Serial.print(MAIN_NAME);
+  Serial.println(" setup");
 
-  Serial.println("setting mode WIFI_AP_STA");
+  Serial.println("setting mode WIFI_STA");
   WiFi.mode(WIFI_STA);
 
   WiFi.begin(ssid, password);

@@ -1,3 +1,1 @@
-makefile from https://github.com/plerup/makeEspArduino
-    added SKETCH line, upload and ota targets
-    changed name to Makefile
+https://github.com/thefekete/LM75

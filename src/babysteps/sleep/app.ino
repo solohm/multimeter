@@ -9,22 +9,23 @@
 const char* ssid = "ssid";
 const char* password = "p*ssword";
 uint32_t timeout;
-uint32_t changeTimeout;
+uint32_t sleepTimeout;
 
 #define LED 0
 
 #define HOSTNAME "solohm-mm-"
 #define BROADCASTINTERVAL 1000
-#define CHANGEINTERVAL    5000
 
-Adafruit_MCP23017 mcp;
-
+#define SLEEPINTERVAL 90
 
 WiFiUDP udp;
 unsigned int port = 12345;
 IPAddress broadcastIp;
 
 ESP8266WebServer server(80);
+
+Adafruit_MCP23017 mcp;
+
 
 void broadcast(char * message) {
   udp.beginPacketMulticast(broadcastIp, port, WiFi.localIP());
@@ -46,19 +47,19 @@ void handleReset() {
   
 
 void broadcastStatus() {
-  String message("{\"id\":");
+  String message("{\"nodeid\":");
 
   message.concat("\"");
   message.concat(HOSTNAME);
   message.concat(String(ESP.getChipId(),HEX));
   message.concat("\"");
-  message.concat(",\n \"uptime\":");
+  message.concat(",\"uptime\":");
   message.concat(millis());
-  message.concat(",\n \"class\":\"");
+  message.concat(",\"class\":\"");
   message.concat(MAIN_NAME);
-  message.concat("\",\n \"ipaddress\":\"");
+  message.concat("\",\"ipaddress\":\"");
   message.concat(WiFi.localIP().toString());
-  message.concat("\"}\n");
+  message.concat("\"}");
 
 
   broadcast((char *)message.c_str());
@@ -145,18 +146,14 @@ void setup() {
   mcp.pinMode(11, OUTPUT);
   mcp.pinMode(14, OUTPUT);
   mcp.pinMode(15, OUTPUT);
+
+  mcp.digitalWrite(14, HIGH);
+  mcp.digitalWrite(15, HIGH);
+
+  sleepTimeout = millis() + 120000L;
 }
 
-int chargeEnableCounter;
-
 void loop() {
-
-  // blink alt led
-  delay(100);
-  mcp.digitalWrite(11, HIGH);
-  delay(100);
-  mcp.digitalWrite(11, LOW);
-
   ArduinoOTA.handle();
   yield();
   server.handleClient();
@@ -166,27 +163,9 @@ void loop() {
     broadcastStatus();
   }
 
-  if (millis() > changeTimeout) {
-    switch (chargeEnableCounter % 4) {
-      case 0:
-        mcp.digitalWrite(14, LOW);
-        mcp.digitalWrite(15, LOW);
-        break;
-      case 1:
-        mcp.digitalWrite(14, HIGH);
-        mcp.digitalWrite(15, LOW);
-        break;
-      case 2:
-        mcp.digitalWrite(14, LOW);
-        mcp.digitalWrite(15, HIGH);
-        break;
-      case 3:
-        mcp.digitalWrite(14, HIGH);
-        mcp.digitalWrite(15, HIGH);
-        break;
-    }
-    chargeEnableCounter++;
-    changeTimeout = millis() + CHANGEINTERVAL;
+  if (millis() > sleepTimeout) {
+      Serial.println("Going to sleep");
+      delay(1000);
+      ESP.deepSleep(SLEEPINTERVAL * 1000000L,WAKE_RF_DEFAULT);
   }
-
 }

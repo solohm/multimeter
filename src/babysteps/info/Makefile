@@ -161,21 +161,16 @@ upload0: all
 	$(ESP_TOOL) $(UPLOAD_VERB) -cd ck -cb $(UPLOAD_SPEED) -cp $(UPLOAD_PORT) -ca 0x00000 -cf $(MAIN_EXE)
 
 upload: all
-	-pkill -f microcom
 	$(ESP_ROOT)/tools/esptool/esptool -vv -cd nodemcu -cb 115200 -cp /dev/ttyUSB0 -ca 0x00000 -cf $(MAIN_EXE)
-	-rm -rf /var/lock/LCK..ttyUSB0;microcom -p /dev/ttyUSB0 -s 115200
 
 ota: all
-	python $(ESP_ROOT)/tools/espota.py -r -i 192.168.0.137 -p 8266 -f $(MAIN_EXE)
+	python $(ESP_ROOT)/tools/espota.py -r -i 192.168.0.128 -p 8266 -f $(MAIN_EXE)
 
 otalab: all
 	python $(ESP_ROOT)/tools/espota.py -r -i solohm-mm-d67fe6.local -p 8266 -f $(MAIN_EXE)
 
 ota1: all
 	python $(ESP_ROOT)/tools/espota.py -r -i solohm-mm-cf5026.local -p 8266 -f $(MAIN_EXE)
-
-ota4: all
-	python $(ESP_ROOT)/tools/espota.py -r -i solohm-mm-cf5836.local -p 8266 -f $(MAIN_EXE)
 
 clean:
 	echo Removing all intermediate build files...

@@ -3,29 +3,32 @@
 #include <WiFiUdp.h>
 #include <ArduinoOTA.h>
 #include <ESP8266WebServer.h>
-#include "Adafruit_MCP23017.h"
+
+#include "wificred.h"
+
+/* what's in wificred.h 
+const char* ssid = ".....";
+const char* password = ".....";
+*/
+
+extern "C" {
+#include "user_interface.h"
+}
 
 
-const char* ssid = "ssid";
-const char* password = "p*ssword";
+
 uint32_t timeout;
-uint32_t sleepTimeout;
 
 #define LED 0
 
 #define HOSTNAME "solohm-mm-"
 #define BROADCASTINTERVAL 1000
 
-#define SLEEPINTERVAL 90
-
 WiFiUDP udp;
 unsigned int port = 12345;
 IPAddress broadcastIp;
 
 ESP8266WebServer server(80);
-
-Adafruit_MCP23017 mcp;
-
 
 void broadcast(char * message) {
   udp.beginPacketMulticast(broadcastIp, port, WiFi.localIP());
@@ -36,13 +39,27 @@ void broadcast(char * message) {
 void handleRoot() {
   String html("<head><meta http-equiv='refresh' content='5'></head><body>You are connected</><br><b>");
   html.concat(millis());
-  html.concat("</b><form action='reset'><input type='submit' value='Reset'></form></body>");
+  html.concat("</b><form action='reset'><input type='text' name='code'><input type='submit' value='Reset'></form></body>");
   server.send(200, "text/html", html.c_str());
 }
 
 void handleReset() {
-  server.send(200, "text/html", "<b>Reseting</b>");
-  ESP.reset();
+  String k,v;
+  Serial.println(server.uri());
+  
+  for (int i = 0; i < server.args(); i++) {
+    k = server.argName(i);
+    v = server.arg(i);
+    Serial.printf("%s:%s\n",k.c_str(),v.c_str());
+  } 
+  if (server.hasArg("code")) {
+    if (server.arg("code") == "eatme") {
+      server.send(200, "text/html", "<b>Reseting</b>");
+      ESP.reset();
+    } else {
+      server.send(200, "text/html", "<b>denied</b>");
+    }
+  }
 }
   
 
@@ -59,6 +76,8 @@ void broadcastStatus() {
   message.concat(MAIN_NAME);
   message.concat("\",\"ipaddress\":\"");
   message.concat(WiFi.localIP().toString());
+  message.concat("\",\"rssi\":\"");
+  message.concat(WiFi.RSSI());
   message.concat("\"}");
 
 
@@ -66,6 +85,66 @@ void broadcastStatus() {
   
   Serial.println(message);
 }
+
+
+void WiFiEvent(WiFiEvent_t event) {
+    Serial.printf("\n[WiFi-event] event: %d\t\t", event);
+    switch(event) {
+      case WIFI_EVENT_STAMODE_CONNECTED:
+		Serial.print("WIFI_EVENT_STAMODE_CONNECTED");
+        break;
+      case WIFI_EVENT_STAMODE_DISCONNECTED:
+		Serial.print("WIFI_EVENT_STAMODE_DISCONNECTED");
+        break;
+      case WIFI_EVENT_STAMODE_AUTHMODE_CHANGE:
+		Serial.print("WIFI_EVENT_STAMODE_AUTHMODE_CHANGE");
+        break;
+      case WIFI_EVENT_STAMODE_GOT_IP:
+		Serial.print("WIFI_EVENT_STAMODE_GOT_IP");
+        break;
+      case WIFI_EVENT_STAMODE_DHCP_TIMEOUT:
+		Serial.print("WIFI_EVENT_STAMODE_DHCP_TIMEOUT");
+        break;
+      case WIFI_EVENT_SOFTAPMODE_STACONNECTED:
+		Serial.print("WIFI_EVENT_SOFTAPMODE_STACONNECTED");
+        break;
+      case WIFI_EVENT_SOFTAPMODE_STADISCONNECTED:
+		Serial.print("WIFI_EVENT_SOFTAPMODE_STADISCONNECTED");
+        break;
+      case WIFI_EVENT_SOFTAPMODE_PROBEREQRECVED:
+		Serial.print("WIFI_EVENT_SOFTAPMODE_PROBEREQRECVED");
+        break;
+      case WIFI_EVENT_MAX:
+		Serial.print("WIFI_EVENT_MAX");
+        break;
+    }
+  Serial.print("\t\t");
+   switch (wifi_station_get_connect_status()) {
+      case STATION_IDLE:
+        Serial.print("STATION_IDLE");
+        break;
+      case STATION_CONNECTING:
+        Serial.print("STATION_CONNECTING");
+        break;
+      case STATION_WRONG_PASSWORD:
+        Serial.print("STATION_WRONG_PASSWORD");
+        break;
+      case STATION_NO_AP_FOUND:
+        Serial.print("STATION_NO_AP_FOUND");
+        break;
+      case STATION_CONNECT_FAIL:
+        Serial.print("STATION_CONNECT_FAIL");
+        break;
+      case STATION_GOT_IP:
+        Serial.print("STATION_GOT_IP");
+        break;
+  }
+  Serial.println("\n");
+
+
+}
+
+
 void setup() {
   pinMode(LED, OUTPUT);
 
@@ -74,8 +153,9 @@ void setup() {
   Serial.print(MAIN_NAME);
   Serial.println(" setup");
 
+  WiFi.onEvent(WiFiEvent);
   Serial.println("setting mode WIFI_STA");
-  WiFi.mode(WIFI_STA);
+  WiFi.mode(WIFI_AP_STA);
 
   WiFi.begin(ssid, password);
   Serial.print("connecting to ");
@@ -105,8 +185,10 @@ void setup() {
     digitalWrite(LED, HIGH);
   });
   ArduinoOTA.onEnd([]() {
+    WiFi.removeEvent(WiFiEvent);
     Serial.println("\arduinoOTA end");
     digitalWrite(LED, HIGH);
+    delay(500);
   });
   ArduinoOTA.onProgress([](unsigned int progress, unsigned int total) {
     Serial.printf("Progress: %u%%\r", (progress / (total / 100)));
@@ -142,15 +224,7 @@ void setup() {
   server.begin();
   Serial.println("HTTP server started");
 
-  mcp.begin();      // use default address 0
-  mcp.pinMode(11, OUTPUT);
-  mcp.pinMode(14, OUTPUT);
-  mcp.pinMode(15, OUTPUT);
 
-  mcp.digitalWrite(14, HIGH);
-  mcp.digitalWrite(15, HIGH);
-
-  sleepTimeout = millis() + 120000L;
 }
 
 void loop() {
@@ -163,9 +237,4 @@ void loop() {
     broadcastStatus();
   }
 
-  if (millis() > sleepTimeout) {
-      Serial.println("Going to sleep");
-      delay(1000);
-      ESP.deepSleep(SLEEPINTERVAL * 1000000L,WAKE_RF_DEFAULT);
-  }
 }

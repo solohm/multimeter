@@ -3,20 +3,21 @@
 #include <WiFiUdp.h>
 #include <ArduinoOTA.h>
 #include <ESP8266WebServer.h>
-#include "Adafruit_MCP23017.h"
+#include <SD.h>
 
+#include "wificred.h"
 
-const char* ssid = "ssid";
-const char* password = "p*ssword";
+/* what's in wificred.h 
+const char* ssid = ".....";
+const char* password = ".....";
+*/
+
 uint32_t timeout;
-uint32_t sleepTimeout;
 
 #define LED 0
 
 #define HOSTNAME "solohm-mm-"
 #define BROADCASTINTERVAL 1000
-
-#define SLEEPINTERVAL 90
 
 WiFiUDP udp;
 unsigned int port = 12345;
@@ -24,8 +25,32 @@ IPAddress broadcastIp;
 
 ESP8266WebServer server(80);
 
-Adafruit_MCP23017 mcp;
+Sd2Card card;
+const int chipSelect = 5;
 
+void printDirectory(File dir, int numTabs) {
+  while (true) {
+
+    File entry =  dir.openNextFile();
+    if (! entry) {
+      // no more files
+      break;
+    }
+    for (uint8_t i = 0; i < numTabs; i++) {
+      Serial.print(" ");
+    }
+    Serial.print(entry.name());
+    if (entry.isDirectory()) {
+      Serial.println("/");
+      printDirectory(entry, numTabs + 1);
+    } else {
+      // files have sizes, directories do not
+      Serial.print("  ");
+      Serial.println(entry.size(), DEC);
+    }
+    entry.close();
+  }
+}
 
 void broadcast(char * message) {
   udp.beginPacketMulticast(broadcastIp, port, WiFi.localIP());
@@ -67,6 +92,8 @@ void broadcastStatus() {
   Serial.println(message);
 }
 void setup() {
+  File root;
+
   pinMode(LED, OUTPUT);
 
   Serial.begin(115200);
@@ -142,15 +169,27 @@ void setup() {
   server.begin();
   Serial.println("HTTP server started");
 
-  mcp.begin();      // use default address 0
-  mcp.pinMode(11, OUTPUT);
-  mcp.pinMode(14, OUTPUT);
-  mcp.pinMode(15, OUTPUT);
+  if (SD.begin(chipSelect)){
+  //if (!card.init(SPI_HALF_SPEED, chipSelect)) {
+     Serial.println("SD Card initialized.");
+  } else {
+     Serial.println("SD Card failed.");
+  }
 
-  mcp.digitalWrite(14, HIGH);
-  mcp.digitalWrite(15, HIGH);
+  root = SD.open("/");
+  printDirectory(root, 0);
 
-  sleepTimeout = millis() + 120000L;
+  File dataFile = SD.open("AUTORUN.INF");
+  // if the file is available, write to it:
+  if (dataFile) {
+    while (dataFile.available()) {
+      Serial.write(dataFile.read()&0x7F);
+    }
+    dataFile.close();
+  }
+
+
+
 }
 
 void loop() {
@@ -163,9 +202,4 @@ void loop() {
     broadcastStatus();
   }
 
-  if (millis() > sleepTimeout) {
-      Serial.println("Going to sleep");
-      delay(1000);
-      ESP.deepSleep(SLEEPINTERVAL * 1000000L,WAKE_RF_DEFAULT);
-  }
 }

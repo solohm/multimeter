@@ -4,8 +4,12 @@
 #include <ArduinoOTA.h>
 #include <ESP8266WebServer.h>
 
-const char* ssid = "ssid";
-const char* password = "p*ssword";
+#include "wificred.h"
+/* what's in wificred.h 
+const char* ssid = ".....";
+const char* password = ".....";
+*/
+
 uint32_t timeout;
 
 #define LED 0
@@ -87,7 +91,7 @@ void setup() {
   String hostname(HOSTNAME);
   hostname += String(ESP.getChipId(), HEX);
   ArduinoOTA.setHostname((const char *)hostname.c_str());
-  WiFi.softAP((const char *)hostname.c_str());
+  // WiFi.softAP((const char *)hostname.c_str());
 
   // No authentication by default
   // ArduinoOTA.setPassword((const char *)"123");

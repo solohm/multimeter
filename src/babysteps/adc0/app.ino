@@ -58,6 +58,10 @@ void handleReset() {
   server.send(200, "text/html", "<b>Reseting</b>");
   ESP.reset();
 }
+
+void dataReady() {
+  Serial.println("dataReady");
+}
   
 
 void broadcastStatus() {
@@ -95,7 +99,8 @@ void broadcastStatus() {
   Serial.println(message);
 }
 void setup() {
-  pinMode(LED, OUTPUT);
+  // pinMode(LED, OUTPUT);
+  pinMode(LED, INPUT);
   pinMode(CS_ADC0, OUTPUT);
 
   Serial.begin(115200);
@@ -133,15 +138,15 @@ void setup() {
 
   ArduinoOTA.onStart([]() {
     Serial.println("arduinoOTA start");
-    digitalWrite(LED, HIGH);
+    //digitalWrite(LED, HIGH);
   });
   ArduinoOTA.onEnd([]() {
     Serial.println("\arduinoOTA end");
-    digitalWrite(LED, HIGH);
+    // digitalWrite(LED, HIGH);
   });
   ArduinoOTA.onProgress([](unsigned int progress, unsigned int total) {
     Serial.printf("Progress: %u%%\r", (progress / (total / 100)));
-    digitalWrite(LED, !digitalRead(LED));
+    // digitalWrite(LED, !digitalRead(LED));
 
   });
   ArduinoOTA.onError([](ota_error_t error) {
@@ -212,6 +217,8 @@ void setup() {
   vmin = 30000;
   imax = 0;
   imin = 30000;
+
+  attachInterrupt(0,dataReady,FALLING);
 }
 
 #define REPLYLEN 4
@@ -447,7 +454,7 @@ void loop() {
   server.handleClient();
   if (millis() > timeout) {
     adcReadBurst();
-    digitalWrite(LED, !digitalRead(LED));
+    // digitalWrite(LED, !digitalRead(LED));
     timeout = millis() + BROADCASTINTERVAL;
     broadcastStatus();
   }

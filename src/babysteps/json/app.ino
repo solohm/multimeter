@@ -3,29 +3,27 @@
 #include <WiFiUdp.h>
 #include <ArduinoOTA.h>
 #include <ESP8266WebServer.h>
-#include "Adafruit_MCP23017.h"
 
+#include "wificred.h"
+#include <ArduinoJson.h>
 
-const char* ssid = "ssid";
-const char* password = "p*ssword";
+/* what's in wificred.h 
+const char* ssid = ".....";
+const char* password = ".....";
+*/
+
 uint32_t timeout;
-uint32_t sleepTimeout;
 
 #define LED 0
 
 #define HOSTNAME "solohm-mm-"
 #define BROADCASTINTERVAL 1000
 
-#define SLEEPINTERVAL 90
-
 WiFiUDP udp;
 unsigned int port = 12345;
 IPAddress broadcastIp;
 
 ESP8266WebServer server(80);
-
-Adafruit_MCP23017 mcp;
-
 
 void broadcast(char * message) {
   udp.beginPacketMulticast(broadcastIp, port, WiFi.localIP());
@@ -34,9 +32,15 @@ void broadcast(char * message) {
 }
 
 void handleRoot() {
-  String html("<head><meta http-equiv='refresh' content='5'></head><body>You are connected</><br><b>");
-  html.concat(millis());
-  html.concat("</b><form action='reset'><input type='submit' value='Reset'></form></body>");
+  char json[] = "{\"sensor\":\"gps\",\"time\":1351824120,\"data\":[48.756080,2.302038]}";
+  String html("<head><meta http-equiv='refresh' content='5'></head><body>You are connected</><br>");
+  StaticJsonBuffer<200> jsonBuffer;
+  JsonObject& root = jsonBuffer.parseObject(json);
+  html.concat(root["time"].as<long>());
+  html.concat(", ");
+  html.concat(String((double)root["data"][0],4));
+  html.concat(",");
+  html.concat(String((double)root["data"][1],4));
   server.send(200, "text/html", html.c_str());
 }
 
@@ -142,15 +146,7 @@ void setup() {
   server.begin();
   Serial.println("HTTP server started");
 
-  mcp.begin();      // use default address 0
-  mcp.pinMode(11, OUTPUT);
-  mcp.pinMode(14, OUTPUT);
-  mcp.pinMode(15, OUTPUT);
 
-  mcp.digitalWrite(14, HIGH);
-  mcp.digitalWrite(15, HIGH);
-
-  sleepTimeout = millis() + 120000L;
 }
 
 void loop() {
@@ -163,9 +159,4 @@ void loop() {
     broadcastStatus();
   }
 
-  if (millis() > sleepTimeout) {
-      Serial.println("Going to sleep");
-      delay(1000);
-      ESP.deepSleep(SLEEPINTERVAL * 1000000L,WAKE_RF_DEFAULT);
-  }
 }

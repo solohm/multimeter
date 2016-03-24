@@ -1,0 +1,280 @@
+#include <ESP8266WiFi.h>
+#include <ESP8266mDNS.h>
+#include <WiFiUdp.h>
+#include <ArduinoOTA.h>
+#include <ESP8266WebServer.h>
+
+#include "wificred.h"
+
+/* what's in wificred.h 
+const char* ssid = ".....";
+const char* password = ".....";
+*/
+
+extern "C" {
+#include "user_interface.h"
+}
+
+
+
+uint32_t timeout;
+
+#define LED 0
+
+#define HOSTNAME "solohm-mm-"
+#define BROADCASTINTERVAL 1000
+
+unsigned long timeoutScan;
+int networkCount;
+
+WiFiUDP udp;
+unsigned int port = 12345;
+IPAddress broadcastIp;
+
+ESP8266WebServer server(80);
+
+void broadcast(char * message) {
+  udp.beginPacketMulticast(broadcastIp, port, WiFi.localIP());
+  udp.write(message);
+  udp.endPacket();
+}
+
+void handleRoot() {
+  String html("<head><meta http-equiv='refresh' content='10'></head><body>You are connected</><br><b>");
+  html.concat(millis());
+  html.concat("</b><form action='reset'><input type='text' name='code'><input type='submit' value='Reset'></form></body>");
+
+  html.concat("<table>");
+  for (int i = 0; i < networkCount; i++) {
+    html.concat("<tr>");
+    html.concat("<td>"+WiFi.SSID(i)+"</td>");
+    html.concat("<td>"+String(WiFi.RSSI(i))+"</td>");
+    html.concat("<td>");
+    switch (WiFi.encryptionType(i)) {
+      case ENC_TYPE_NONE:
+        html.concat("open");
+        break;
+      case ENC_TYPE_WEP:
+        html.concat("wep");
+        break;
+      case ENC_TYPE_TKIP:
+        html.concat("tkip");
+        break;
+      case ENC_TYPE_CCMP:
+        html.concat("ccmp");
+        break;
+      case ENC_TYPE_AUTO:
+        html.concat("auto");
+        break;
+    }
+    html.concat("</td></tr>");
+  }
+  html.concat("</table>");
+
+  server.send(200, "text/html", html.c_str());
+}
+
+void handleReset() {
+  String k,v;
+  Serial.println(server.uri());
+  
+  for (int i = 0; i < server.args(); i++) {
+    k = server.argName(i);
+    v = server.arg(i);
+    Serial.printf("%s:%s\n",k.c_str(),v.c_str());
+  } 
+  if (server.hasArg("code")) {
+    if (server.arg("code") == "eatme") {
+      server.send(200, "text/html", "<b>Reseting</b>");
+      ESP.reset();
+    } else {
+      server.send(200, "text/html", "<b>denied</b>");
+    }
+  }
+}
+  
+
+void broadcastStatus() {
+  String message("{\"nodeid\":");
+
+  message.concat("\"");
+  message.concat(HOSTNAME);
+  message.concat(String(ESP.getChipId(),HEX));
+  message.concat("\"");
+  message.concat(",\"uptime\":");
+  message.concat(millis());
+  message.concat(",\"class\":\"");
+  message.concat(MAIN_NAME);
+  message.concat("\",\"ipaddress\":\"");
+  message.concat(WiFi.localIP().toString());
+  message.concat("\",\"rssi\":\"");
+  message.concat(WiFi.RSSI());
+  message.concat("\"}");
+
+
+  broadcast((char *)message.c_str());
+  
+  Serial.println(message);
+}
+
+
+void WiFiEvent(WiFiEvent_t event) {
+    Serial.printf("\n[WiFi-event] event: %d\t\t", event);
+    switch(event) {
+      case WIFI_EVENT_STAMODE_CONNECTED:
+		Serial.print("WIFI_EVENT_STAMODE_CONNECTED");
+        break;
+      case WIFI_EVENT_STAMODE_DISCONNECTED:
+		Serial.print("WIFI_EVENT_STAMODE_DISCONNECTED");
+        break;
+      case WIFI_EVENT_STAMODE_AUTHMODE_CHANGE:
+		Serial.print("WIFI_EVENT_STAMODE_AUTHMODE_CHANGE");
+        break;
+      case WIFI_EVENT_STAMODE_GOT_IP:
+		Serial.print("WIFI_EVENT_STAMODE_GOT_IP");
+        break;
+      case WIFI_EVENT_STAMODE_DHCP_TIMEOUT:
+		Serial.print("WIFI_EVENT_STAMODE_DHCP_TIMEOUT");
+        break;
+      case WIFI_EVENT_SOFTAPMODE_STACONNECTED:
+		Serial.print("WIFI_EVENT_SOFTAPMODE_STACONNECTED");
+        break;
+      case WIFI_EVENT_SOFTAPMODE_STADISCONNECTED:
+		Serial.print("WIFI_EVENT_SOFTAPMODE_STADISCONNECTED");
+        break;
+      case WIFI_EVENT_SOFTAPMODE_PROBEREQRECVED:
+		Serial.print("WIFI_EVENT_SOFTAPMODE_PROBEREQRECVED");
+        break;
+      case WIFI_EVENT_MAX:
+		Serial.print("WIFI_EVENT_MAX");
+        break;
+    }
+  Serial.print("\t\t");
+   switch (wifi_station_get_connect_status()) {
+      case STATION_IDLE:
+        Serial.print("STATION_IDLE");
+        break;
+      case STATION_CONNECTING:
+        Serial.print("STATION_CONNECTING");
+        break;
+      case STATION_WRONG_PASSWORD:
+        Serial.print("STATION_WRONG_PASSWORD");
+        break;
+      case STATION_NO_AP_FOUND:
+        Serial.print("STATION_NO_AP_FOUND");
+        break;
+      case STATION_CONNECT_FAIL:
+        Serial.print("STATION_CONNECT_FAIL");
+        break;
+      case STATION_GOT_IP:
+        Serial.print("STATION_GOT_IP");
+        break;
+  }
+  Serial.println("\n");
+
+
+}
+
+
+void setup() {
+  pinMode(LED, OUTPUT);
+
+  String hostname(HOSTNAME);
+  hostname += String(ESP.getChipId(), HEX);
+
+  Serial.begin(115200);
+  Serial.print("\n\n");
+  Serial.print(MAIN_NAME);
+  Serial.println(" setup");
+
+  WiFi.softAP(hostname.c_str(), "password");  
+  WiFi.onEvent(WiFiEvent);
+  Serial.println("setting mode WIFI_STA");
+  WiFi.mode(WIFI_AP_STA);
+
+  WiFi.begin(ssid, password);
+  Serial.print("connecting to ");
+  Serial.print(ssid);
+  Serial.print(" ");
+  Serial.println(password);
+
+  while (WiFi.waitForConnectResult() != WL_CONNECTED) {
+    delay(500);
+    Serial.print(".");
+  }
+  Serial.println("connected");
+
+  // Port defaults to 8266
+  // ArduinoOTA.setPort(8266);
+
+  ArduinoOTA.setHostname((const char *)hostname.c_str());
+  // WiFi.softAP((const char *)hostname.c_str());
+
+  // No authentication by default
+  // ArduinoOTA.setPassword((const char *)"123");
+
+  ArduinoOTA.onStart([]() {
+    Serial.println("arduinoOTA start");
+    digitalWrite(LED, HIGH);
+  });
+  ArduinoOTA.onEnd([]() {
+    WiFi.removeEvent(WiFiEvent);
+    Serial.println("\arduinoOTA end");
+    digitalWrite(LED, HIGH);
+    delay(500);
+  });
+  ArduinoOTA.onProgress([](unsigned int progress, unsigned int total) {
+    Serial.printf("Progress: %u%%\r", (progress / (total / 100)));
+    digitalWrite(LED, !digitalRead(LED));
+
+  });
+  ArduinoOTA.onError([](ota_error_t error) {
+    Serial.printf("Error[%u]: ", error);
+    if (error == OTA_AUTH_ERROR) Serial.println("Auth Failed");
+    else if (error == OTA_BEGIN_ERROR) Serial.println("Begin Failed");
+    else if (error == OTA_CONNECT_ERROR) Serial.println("Connect Failed");
+    else if (error == OTA_RECEIVE_ERROR) Serial.println("Receive Failed");
+    else if (error == OTA_END_ERROR) Serial.println("End Failed");
+  });
+
+  ArduinoOTA.begin();
+
+  Serial.print("IP address ");
+  Serial.print(WiFi.localIP());
+  Serial.print(" ");
+  Serial.print(hostname);
+  Serial.println(".local");
+
+  broadcastIp = ~WiFi.subnetMask() | WiFi.gatewayIP();
+  Serial.print("broadcast address: ");
+  Serial.println(broadcastIp);
+
+  udp.begin(WiFi.localIP());
+
+  server.on("/", handleRoot);
+  server.on("/reset", handleReset);
+
+  server.begin();
+  Serial.println("HTTP server started");
+
+  timeoutScan = 0;
+
+
+}
+
+void loop() {
+  ArduinoOTA.handle();
+  yield();
+  server.handleClient();
+  if (millis() > timeout) {
+    digitalWrite(LED, !digitalRead(LED));
+    timeout = millis() + BROADCASTINTERVAL;
+    broadcastStatus();
+  }
+  if (millis() > timeoutScan) {
+      Serial.println("scanNetworks");
+      networkCount = WiFi.scanNetworks();
+      timeoutScan = millis() + 10000;
+      Serial.printf("%d found\n",networkCount);
+  } 
+}

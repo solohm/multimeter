@@ -8,8 +8,8 @@
 #define mPS 0.0002500026
 #define bPS 0.0347121629
 
-#define mBATT 0.0002520267
-#define bBATT 0.0196946882
+#define mBATTERY 0.0002520267
+#define bBATTERY 0.0196946882
 
 
 #include "wificred.h"
@@ -45,8 +45,13 @@ void adcSetupRead();
 void adcRead();
 uint16_t vmax,vmin,imax,imin;
 int reads;
-uint32_t d4[4];
 
+int32_t sum0, sum1, sum2, sum3;
+int32_t adc0Average,adc1Average,adc2Average,adc3Average;
+int16_t d4[4];
+
+
+void adcAverage(int samples);
 void shutdown();
 
 void broadcast(char *message) {
@@ -69,6 +74,8 @@ void handleReset() {
   
 
 void broadcastStatus(char *state) {
+  adcAverage(1000);
+
   String message("{\"nodeid\":");
 
   message.concat("\"");
@@ -83,19 +90,19 @@ void broadcastStatus(char *state) {
   message.concat(WiFi.localIP().toString());
 
   message.concat("\",\"adc0\":");
-  message.concat(d4[0]);
+  message.concat(adc0Average);
   message.concat(",\"adc1\":");
-  message.concat(d4[1]);
+  message.concat(adc1Average);
   message.concat(",\"adc2\":");
-  message.concat(d4[2]);
+  message.concat(adc2Average);
   message.concat(",\"adc3\":");
-  message.concat(d4[3]);
+  message.concat(adc3Average);
   message.concat(",\"state\":\"");
   message.concat(state);
-  message.concat("\",\"voltage.powersupply\":");
-  message.concat(String(float(mPS*d4[3] + bPS),4));
   message.concat(",\"voltage.battery\":");
-  message.concat(String(float(mPS*d4[2] + bPS),4));
+  message.concat(String(float(mBATTERY*adc2Average + bBATTERY),4));
+  message.concat("\",\"voltage.powersupply\":");
+  message.concat(String(float(mPS*adc3Average + bPS),4));
 
   message.concat("}");
 
@@ -215,9 +222,6 @@ void setup() {
 
   adcSetup();
   adcSetupRead();
-  adcRead();
-  adcRead();
-  adcRead();
 
   mcp.digitalWrite(14, LOW); // set charge current 
   mcp.digitalWrite(15, HIGH);
@@ -240,10 +244,14 @@ void setup() {
   mcp.digitalWrite(3, LOW); 
   mcp.digitalWrite(4, LOW); 
 
-  for (int i = 0; i < 32; i++) {
-    adcRead(); // fills the fifo
-  }
-
+  adcAverage(1000);
+  delay(1000);
+  adcAverage(1000);
+  delay(1000);
+  adcAverage(1000);
+  delay(1000);
+  adcAverage(1000);
+  delay(1000);
 
   sleepTimeout = millis() + RUNNINGINTERVAL*1000L;
   broadcastStatus((char *)"setup");
@@ -264,7 +272,7 @@ void loop() {
   }
 
   if (millis() > sleepTimeout) {
-    shutdown();
+    // shutdown();
   }
 }
 
@@ -368,7 +376,6 @@ void adcSetupRead() {
   digitalWrite(CS_ADC0, HIGH);
 }
 
-
 void adcRead() {
   int i,c;
   uint32_t d;
@@ -394,16 +401,31 @@ void adcRead() {
     d <<= 1;
 
     if ((i % 24) == 23) {
-      d4[c++] = (d >> 9)&0xFFFF; // shift values to correct location
+      // Serial.printf("%08X\n",d>>1);
+      d4[c++] = (int16_t)((d >> 9)&0xFFFF); // shift values to correct location
       d = 0;
     }
   }
   digitalWrite(CS_ADC0, HIGH);
 
-/*
-  char buf[100];
-  sprintf(buf,"%7d %7d %7d %7d",d4[0],d4[1],d4[2],d4[3]);
-  Serial.println(buf);
-*/
 }
 
+void adcAverage(int samples) {
+  // d4 values are 15 bit max, shouldn't overflow for small count
+  sum0 = 0;
+  sum1 = 0;
+  sum2 = 0;
+  sum3 = 0;
+
+  for (int i = 0; i < samples; i++) {
+    adcRead();
+    sum0 = sum0 + d4[0];
+    sum1 = sum1 + d4[1];
+    sum2 = sum2 + d4[2];
+    sum3 = sum3 + d4[3];
+  }
+  adc0Average = round(float(sum0) / samples);
+  adc1Average = round(float(sum1) / samples);
+  adc2Average = round(float(sum2) / samples);
+  adc3Average = round(float(sum3) / samples);
+}

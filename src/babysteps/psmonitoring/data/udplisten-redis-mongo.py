@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-import select, socket, json, time, redis
+import select, socket, json, time, redis, mongo
 
 port = 12345  # where do you expect to get a msg?
 bufferSize = 1024 # whatever you need

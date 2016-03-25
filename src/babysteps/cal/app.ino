@@ -45,8 +45,8 @@ void adcSetupRead();
 void adcRead();
 uint16_t vmax,vmin,imax,imin;
 int reads;
-int32_t adc0Average,adc1Average,adc2Average,adc3Average;
 int32_t sum0, sum1, sum2, sum3;
+int32_t adc0Average,adc1Average,adc2Average,adc3Average;
 int16_t d4[4];
 
 
@@ -84,23 +84,25 @@ void handleSetting() {
 }
 
 void handleData() {
-  char buf[100];
+  char buf[500];
 
   if(server.hasArg("samples")) {
     settingSamples = server.arg("samples").toInt();
+    if (settingSamples > 5000) {
+      settingSamples = 5000;
+    }
   }
 
+  uint32_t start = millis();
   adcAverage(settingSamples);
-  sprintf(buf,"%d,%d,%d,%d\n",adc0Average,adc1Average,adc2Average,adc3Average);
+  sprintf(buf,"{\"samples\":%d,\"average.adc0\":%d,\"average.adc1\":%d,\"average.adc2\":%d,\"average.adc3\":%d,\"duration\":%d}\n",settingSamples,adc0Average,adc1Average,adc2Average,adc3Average,millis()-start);
   server.send(200, "text/plain", buf);
 }
 
 void broadcastStatus(char *state) {
-  uint32_t start = millis();
 
   adcAverage(settingSamples);
 
-  if (settingDebug > 0) Serial.printf("%d %ld\n",settingSamples,millis()-start);
 
   String message("{\"id\":");
 

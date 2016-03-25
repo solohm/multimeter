@@ -20,6 +20,7 @@ const char* password = ".....";
 
 uint32_t timeout;
 uint32_t sleepTimeout;
+uint32_t adcTimeout;
 
 #define LED 0
 
@@ -244,16 +245,8 @@ void setup() {
   mcp.digitalWrite(3, LOW); 
   mcp.digitalWrite(4, LOW); 
 
-  adcAverage(1000);
-  delay(1000);
-  adcAverage(1000);
-  delay(1000);
-  adcAverage(1000);
-  delay(1000);
-  adcAverage(1000);
-  delay(1000);
-
   sleepTimeout = millis() + RUNNINGINTERVAL*1000L;
+  timeout = millis() + BROADCASTINTERVAL;
   broadcastStatus((char *)"setup");
 }
 
@@ -263,16 +256,17 @@ void loop() {
   server.handleClient();
   if (millis() > timeout) {
     digitalWrite(LED, !digitalRead(LED));
-    for (int i = 0; i < 1; i++) {
-      adcRead();
-      broadcastStatus((char *)"running");
-      delay(1);
-    }
+    broadcastStatus((char *)"running");
     timeout = millis() + BROADCASTINTERVAL;
   }
 
   if (millis() > sleepTimeout) {
-    // shutdown();
+    shutdown();
+  }
+
+  if (millis() > adcTimeout) {
+    adcRead();
+    adcTimeout = millis() + 1;
   }
 }
 

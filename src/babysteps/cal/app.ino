@@ -24,7 +24,7 @@ uint32_t sleepTimeout;
 #define LED 0
 
 #define HOSTNAME "solohm-mm-"
-#define BROADCASTINTERVAL 2000
+#define BROADCASTINTERVAL 250
 
 #define SLEEPINTERVAL 60
 #define RUNNINGINTERVAL 15
@@ -95,7 +95,7 @@ void handleData() {
 
   uint32_t start = millis();
   adcAverage(settingSamples);
-  sprintf(buf,"{\"samples\":%d,\"average.adc0\":%d,\"average.adc1\":%d,\"average.adc2\":%d,\"average.adc3\":%d,\"duration\":%d}\n",settingSamples,adc0Average,adc1Average,adc2Average,adc3Average,millis()-start);
+  sprintf(buf,"{\"samples\":%d,\"adc.pv.voltage\":%d,\"adc.pv.current\":%d,\"adc.battery\":%d,\"adc.powersupply\":%d,\"duration\":%d}\n",settingSamples,adc0Average,adc1Average,adc2Average,adc3Average,millis()-start);
   server.send(200, "text/plain", buf);
 }
 
@@ -117,13 +117,13 @@ void broadcastStatus(char *state) {
   message.concat("\",\"ipaddress\":\"");
   message.concat(WiFi.localIP().toString());
 
-  message.concat("\",\"average.adc0\":");
+  message.concat("\",\"adc.pv.voltage\":");
   message.concat(adc0Average);
-  message.concat(",\"average.adc1\":");
+  message.concat(",\"adc.pv.current\":");
   message.concat(adc1Average);
-  message.concat(",\"average.adc2\":");
+  message.concat(",\"adc.battery\":");
   message.concat(adc2Average);
-  message.concat(",\"average.adc3\":");
+  message.concat(",\"adc.powersupply\":");
   message.concat(adc3Average);
 
 

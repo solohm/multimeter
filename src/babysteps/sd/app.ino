@@ -188,6 +188,9 @@ void setup() {
     dataFile.close();
   }
 
+  Serial.printf("sd type    : %d\n", SD.type());
+  Serial.printf("sd fat type: %d\n", SD.fatType());
+  Serial.printf("sd size    : %ld\n", SD.size());
 
 
 }

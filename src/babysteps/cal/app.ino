@@ -45,9 +45,16 @@ void adcSetupRead();
 void adcRead();
 uint16_t vmax,vmin,imax,imin;
 int reads;
-uint32_t d4[4];
+int32_t adc0Average,adc1Average,adc2Average,adc3Average;
+int32_t sum0, sum1, sum2, sum3;
+int16_t d4[4];
+
+
+uint8_t settingDebug = 0;
+uint16_t settingSamples = 0;
 
 void shutdown();
+void adcAverage(int samples);
 
 void broadcast(char *message) {
   udp.beginPacketMulticast(broadcastIp, port, WiFi.localIP());
@@ -58,18 +65,44 @@ void broadcast(char *message) {
 void handleRoot() {
   String html("<head><meta http-equiv='refresh' content='5'></head><body>You are connected</><br><b>");
   html.concat(millis());
-  html.concat("</b><form action='reset'><input type='submit' value='Reset'></form></body>");
   server.send(200, "text/html", html.c_str());
 }
 
-void handleReset() {
-  server.send(200, "text/html", "<b>Reseting</b>");
-  ESP.reset();
+void handleSetting() {
+    char buf[100];
+    if(server.hasArg("debug")) {
+      settingDebug = server.arg("debug").toInt();
+    }
+    if(server.hasArg("samples")) {
+      settingSamples = server.arg("samples").toInt();
+      if (settingSamples > 5000) {
+        settingSamples = 5000;
+      }
+    }
+    sprintf(buf,"{\"debug\":%d,\"samples\":%d}",settingDebug,settingSamples);
+    server.send(200, "text/plain", buf);
 }
-  
+
+void handleData() {
+  char buf[100];
+
+  if(server.hasArg("samples")) {
+    settingSamples = server.arg("samples").toInt();
+  }
+
+  adcAverage(settingSamples);
+  sprintf(buf,"%d,%d,%d,%d\n",adc0Average,adc1Average,adc2Average,adc3Average);
+  server.send(200, "text/plain", buf);
+}
 
 void broadcastStatus(char *state) {
-  String message("{\"nodeid\":");
+  uint32_t start = millis();
+
+  adcAverage(settingSamples);
+
+  if (settingDebug > 0) Serial.printf("%d %ld\n",settingSamples,millis()-start);
+
+  String message("{\"id\":");
 
   message.concat("\"");
   message.concat(HOSTNAME);
@@ -82,20 +115,19 @@ void broadcastStatus(char *state) {
   message.concat("\",\"ipaddress\":\"");
   message.concat(WiFi.localIP().toString());
 
-  message.concat("\",\"adc0\":");
-  message.concat(d4[0]);
-  message.concat(",\"adc1\":");
-  message.concat(d4[1]);
-  message.concat(",\"adc2\":");
-  message.concat(d4[2]);
-  message.concat(",\"adc3\":");
-  message.concat(d4[3]);
+  message.concat("\",\"average.adc0\":");
+  message.concat(adc0Average);
+  message.concat(",\"average.adc1\":");
+  message.concat(adc1Average);
+  message.concat(",\"average.adc2\":");
+  message.concat(adc2Average);
+  message.concat(",\"average.adc3\":");
+  message.concat(adc3Average);
+
+
   message.concat(",\"state\":\"");
   message.concat(state);
-  message.concat("\",\"voltage.powersupply\":");
-  message.concat(String(float(mPS*d4[3] + bPS),4));
-  message.concat(",\"voltage.battery\":");
-  message.concat(String(float(mPS*d4[2] + bPS),4));
+  message.concat("\"");
 
   message.concat("}");
 
@@ -190,7 +222,8 @@ void setup() {
   udp.begin(WiFi.localIP());
 
   server.on("/", handleRoot);
-  server.on("/reset", handleReset);
+  server.on("/data", handleData);
+  server.on("/setting", handleSetting);
 
   server.begin();
   Serial.println("HTTP server started");
@@ -215,9 +248,6 @@ void setup() {
 
   adcSetup();
   adcSetupRead();
-  adcRead();
-  adcRead();
-  adcRead();
 
   mcp.digitalWrite(14, LOW); // set charge current 
   mcp.digitalWrite(15, HIGH);
@@ -240,13 +270,14 @@ void setup() {
   mcp.digitalWrite(3, LOW); 
   mcp.digitalWrite(4, LOW); 
 
-  for (int i = 0; i < 32; i++) {
-    adcRead(); // fills the fifo
-  }
-
-
   sleepTimeout = millis() + RUNNINGINTERVAL*1000L;
+
+  settingDebug=0;
+  settingSamples = 100;
+
+  adcAverage(1000);
   broadcastStatus((char *)"setup");
+
 }
 
 void loop() {
@@ -255,16 +286,8 @@ void loop() {
   server.handleClient();
   if (millis() > timeout) {
     digitalWrite(LED, !digitalRead(LED));
-    for (int i = 0; i < 1; i++) {
-      adcRead();
-      broadcastStatus((char *)"running");
-      delay(1);
-    }
+    broadcastStatus((char *)"running");
     timeout = millis() + BROADCASTINTERVAL;
-  }
-
-  if (millis() > sleepTimeout) {
-    shutdown();
   }
 }
 
@@ -281,39 +304,33 @@ void shutdown() {
 
     broadcastStatus((char *)"sleeping");
     Serial.println("Going to sleep");
-    delay(1000);
     mcp.digitalWrite(11, HIGH); // green led off
     ESP.deepSleep(SLEEPINTERVAL * 1000000L,WAKE_RF_DEFAULT);
 }
+
 
 void adcSetup() {
   int i;
   uint8_t b;
   digitalWrite(SCK, HIGH);
   digitalWrite(MOSI, LOW);
- // delay(1);
   digitalWrite(CS_ADC0, LOW);
 
   b = B01100000; 
   for (i = 0; i < 8; i++) {
-  //  delay(1);
     digitalWrite(MOSI, (b & 0x80));
     digitalWrite(SCK, LOW);
-  //  delay(1);
     digitalWrite(SCK, HIGH);
     b <<= 1;
   }
 
   b = 0x11;
   for (i = 0; i < 8; i++) {
-  //  delay(1);
     digitalWrite(MOSI, (b & 0x80));
     digitalWrite(SCK, LOW);
-  //  delay(1);
     digitalWrite(SCK, HIGH);
     b <<= 1;
   }
-  //delay(1);
   digitalWrite(CS_ADC0, HIGH);
 }
 
@@ -348,7 +365,6 @@ void adcSetupRead() {
   uint8_t b;
   digitalWrite(SCK, HIGH);
   digitalWrite(MOSI, LOW);
-  //delay(1);
   digitalWrite(CS_ADC0, LOW);
 
   b = B11100000; 
@@ -361,10 +377,10 @@ void adcSetupRead() {
 
   for (i = 0; i < 8; i++) {
     digitalWrite(SCK, LOW);
-    Serial.print(digitalRead(MISO));
+    // Serial.print(digitalRead(MISO));
     digitalWrite(SCK, HIGH);
   }
-  Serial.println();
+  // Serial.println();
   digitalWrite(CS_ADC0, HIGH);
 }
 
@@ -394,16 +410,36 @@ void adcRead() {
     d <<= 1;
 
     if ((i % 24) == 23) {
-      d4[c++] = (d >> 9)&0xFFFF; // shift values to correct location
+      // Serial.printf("%08X\n",d>>1);
+      d4[c++] = (int16_t)((d >> 9)&0xFFFF); // shift values to correct location
       d = 0;
     }
   }
   digitalWrite(CS_ADC0, HIGH);
 
-/*
-  char buf[100];
-  sprintf(buf,"%7d %7d %7d %7d",d4[0],d4[1],d4[2],d4[3]);
-  Serial.println(buf);
-*/
+  if (settingDebug > 1) Serial.printf("d4 d %7d %7d %7d %7d",d4[0],d4[1],d4[2],d4[3]);
+  if (settingDebug > 2) Serial.printf("d4 x %07X %07X %07X %07X",d4[0],d4[1],d4[2],d4[3]);
+  if (settingDebug > 1) Serial.println();
 }
 
+void adcAverage(int samples) {
+  // d4 values are 15 bit max, shouldn't overflow for small count
+  sum0 = 0;
+  sum1 = 0;
+  sum2 = 0;
+  sum3 = 0;
+
+  for (int i = 0; i < samples; i++) {
+    adcRead();
+    sum0 = sum0 + d4[0];
+    sum1 = sum1 + d4[1];
+    sum2 = sum2 + d4[2];
+    sum3 = sum3 + d4[3];
+  }
+  if (settingDebug > 0) Serial.printf("sum  %7d %7d %7d %7d\n",sum0,sum1,sum2,sum3);
+  adc0Average = round(float(sum0) / samples);
+  adc1Average = round(float(sum1) / samples);
+  adc2Average = round(float(sum2) / samples);
+  adc3Average = round(float(sum3) / samples);
+  if (settingDebug > 0) Serial.printf("ave  %7d %7d %7d %7d\n\n",adc0Average,adc1Average,adc2Average,adc3Average);
+}
